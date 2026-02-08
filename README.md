@@ -5,9 +5,9 @@ o-checker is a malware detection tool for document files.
 We published this tool at Black Hat USA 2016.  
 The following is the abstract of the research paper at Black Hat USA 2016.
   
-Documents containing executable files are often used in targeted email attacks. We examine various document formats (Rich Text Format, Compound File Binary and Portable Document Format) for files used in targeted attacks from 2009 to 2012 in Japan. Almost all the examined document files contain executable files that ignore the document file format specifications. Therefore, we focus on deviations from file format specifications and examine stealth techniques for hiding executable files. We classify eight anomalous structures and create a tool named o-checker to detect them. O-checker detects 96.1% of the malicious files used in targeted email attacks in 2013 and 2014. There are far fewer stealth techniques for hiding executable files than vulnerabilities of document processors. Additionally, document file formats are more stable than document processors themselves. Accordingly, we assert that o-checker can continue detecting malware with a high detection rate for long periods.  
+Documents containing executable files are often used in targeted email attacks. We examine various document formats (Rich Text Format, Compound File Binary and Portable Document Format) for files used in targeted attacks from 2009 to 2012 in Japan. Almost all the examined document files contain executable files that ignore the document file format specifications. Therefore, we focus on deviations from file format specifications and examine stealth techniques for hiding executable files. We classify eight anomalous structures and create a tool named o-checker to detect them. o-checker detects 96.1% of the malicious files used in targeted email attacks in 2013 and 2014. There are far fewer stealth techniques for hiding executable files than vulnerabilities of document processors. Additionally, document file formats are more stable than document processors themselves. Accordingly, we assert that o-checker can continue detecting malware with a high detection rate for long periods.  
   
-Black Hat USA 2016: [Presentation](https://www.blackhat.com/docs/us-16/materials/us-16-Otsubo-O-checker-Detection-of-Malicious-Documents-through-Deviation-from-File-Format-Specifications.pdf), [White Paper](https://www.blackhat.com/docs/us-16/materials/us-16-Otsubo-O-checker-Detection-of-Malicious-Documents-through-Deviation-from-File-Format-Specifications-wp.pdf)
+Black Hat USA 2016: [Presentation](https://www.blackhat.com/docs/us-16/materials/us-16-Otsubo-o-checker-Detection-of-Malicious-Documents-through-Deviation-from-File-Format-Specifications.pdf), [White Paper](https://www.blackhat.com/docs/us-16/materials/us-16-Otsubo-o-checker-Detection-of-Malicious-Documents-through-Deviation-from-File-Format-Specifications-wp.pdf)
 
 ## Update
 2026/02/08: Python 3 support
@@ -29,11 +29,11 @@ In this case, we ran `o-checker.py` against a malicious Microsoft doc file, whic
 When the document file does not have any of the targeted anomalous structures, the output is **None!**.
 
 #### Advanced usage
-O-checker is not only a detection tool but also an analysis tool that can describe the detailed structure of CFB or PDF document files.
+o-checker is not only a detection tool but also an analysis tool that can describe the detailed structure of CFB or PDF document files.
 The details of usage are as follows.
 
 ##### Analyzing CFB files}
-O-checker contains `msanalysis.py` for analyzing CFB files.
+o-checker contains `msanalysis.py` for analyzing CFB files.
 `msanalysis.py` scans a CFB file, and it outputs analysis logs describing the final determination of **Malicious!** or **None!**.
   
 The following shows an example of output of `msanalysis.py` against a malicious doc file with the judgement option `-j`.
@@ -87,7 +87,7 @@ From the above, this doc file has deviations from file format specifications,
 and an executable file may be present at file offset 0x8800. 
 
 ##### Analyzing PDF files
-O-checker contains `pdfanalysis.py` for analyzing PDF files.
+o-checker contains `pdfanalysis.py` for analyzing PDF files.
 This tool scans a PDF file, and it outputs analysis logs describing the final determination of **Malicious!** or **None!**.
   
 The following shows an example of output from `pdfanalysis.py`
@@ -127,7 +127,7 @@ This PDF file has deviations from file format specifications.
 This suggests that object No.17 (located at offset 0x9DB) in this PDF file contains an executable file.
 
 ###### Analyzing encrypted PDF file
-O-checker can handle four types of encryption methods, namely 40-bit RC4, 128-bit RC4, 128-bit AES, and 256-bit AES. 
+o-checker can handle four types of encryption methods, namely 40-bit RC4, 128-bit RC4, 128-bit AES, and 256-bit AES. 
 When the specified PDF file is encrypted, o-checker usually tries to decrypt it using an empty password.
 If the password is known, you can use the `-p` option to decrypt the PDF file using a specified password.
 
