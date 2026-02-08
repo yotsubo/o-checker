@@ -1,19 +1,16 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2014-2017 Yuhei Otsubo
+Copyright (c) 2014-2026 Yuhei Otsubo
 Released under the MIT license
 http://opensource.org/licenses/mit-license.php
 """
 
-import PDFObj
+from . import PDFObj
 import re
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
+import io
+from . import JPEGCheck
 import zlib
-import JPEGCheck
 
 def decompress(data):
     try:
@@ -22,11 +19,11 @@ def decompress(data):
 
         l = len(decompressor.unused_data)
         if l >= 32:#復号の際に付くゴミのサイズ以上があれば警告
-            decompressed += '__UnusedData__%d__'%l + decompressor.unused_data
+            decompressed += b'__UnusedData__%d__'%l + decompressor.unused_data
 
         return decompressed
     except Exception as e:
-        return "zlib decompress error\n"+str(e)+"aaa"+data
+        return b"zlib decompress error\n"+str(e).encode()+b"aaa"+data
     
 def compress(data):
     return zlib.compress(data)
@@ -45,9 +42,9 @@ def JBIG2Decode(data, decodeParams=None):
                 eof_pos = pos
         pos += 1
     if l-eof_pos < 512+2:
-        return "JBIG2"
+        return b"JBIG2"
     else:
-        return "JBIG2 Error"
+        return b"JBIG2 Error"
     
 def FlateDecode(data, decodeParams=None):
     #一時的にDecodeParmsの処理を削除
@@ -55,15 +52,16 @@ def FlateDecode(data, decodeParams=None):
 
     data = decompress(data)
     predictor = 1
-    p = re.compile('zlib decompress error')
+    p = re.compile(b'zlib decompress error')
     m = p.match(data)
     if decodeParams:
-        predictor = decodeParams['/Predictor']
+        predictor = decodeParams[b'/Predictor']
     if predictor != 1 and not m:
-        columns = decodeParams['/Columns']
+        columns = decodeParams[b'/Columns']
         # PNG prediction:
         if predictor >= 10 and predictor <= 15:
-            output = StringIO()
+            #output = io.StringIO()
+            output = bytearray()
             # PNG prediction can vary from row to row
             rowlength = columns + 1
             assert len(data) % rowlength == 0
@@ -81,62 +79,64 @@ def FlateDecode(data, decodeParams=None):
                         rowdata[i] = (rowdata[i] + prev_rowdata[i]) % 256
                 else:
                     # unsupported PNG filter
-                    print "Unsupported PNG filter %r" % filterByte
+                    print("Unsupported PNG filter %r" % filterByte)
                 prev_rowdata = rowdata
-                output.write(''.join([chr(x) for x in rowdata[1:]]))
-            data = output.getvalue()
+                #output.write(''.join([chr(x) for x in rowdata[1:]]))
+                output += bytearray(rowdata[1:])
+                
+            data = output#.getvalue()
         else:
             # unsupported predictor
-            print "Unsupported flatedecode predictor %r" % predictor
+            print("Unsupported flatedecode predictor %r" % predictor)
     return data
         
 
 def ASCIIHexDecode(data, decodeParms=None):
-    p = re.compile("[0-9a-fA-F\s]+>")
+    p = re.compile(b"[0-9a-fA-F\\s]+>")
     m = p.match(data)
     if not m:
-        p = re.compile("[0-9a-fA-F\s]+")
+        p = re.compile(b"[0-9a-fA-F\\s]+")
         m = p.match(data)
         if m:
-            data = data[:m.end()]+">"
+            data = data[:m.end()]+b">"
         else:
-            return "ASCIIHexDecode error\n"+data
-    retval = ""
-    char = ""
+            return b"ASCIIHexDecode error\n"+data
+    retval = bytearray()
+    char = bytearray()
     x = 0
     while True:
         c = data[x]
-        if c == ">":
+        if c == b">":
             break
         elif c.isspace():
             x += 1
             continue
         char += c
         if len(char) == 2:
-            retval += chr(int(char, base=16))
-            char = ""
+            retval += bytearray([int(char, base=16)])
+            char = bytearray()
         x += 1
     #assert char == ""
     return retval
 
 def ASCII85Decode(data, decodeParms=None):
-    retval = ""
+    retval = bytearray()
     group = []
     x = 0
     hitEod = False
     # remove all whitespace from data
-    data = [y for y in data if not (y in ' \n\r\t')]
+    data = [y for y in data if not (y in b' \n\r\t')]
     while not hitEod:
         c = data[x]
-        if len(retval) == 0 and c == "<" and data[x+1] == "~":
+        if len(retval) == 0 and c == b"<" and data[x+1] == b"~":
             x += 2
             continue
-        elif c == 'z':
+        elif c == b'z':
             assert len(group) == 0
-            retval += '\x00\x00\x00\x00'
+            retval += b'\x00\x00\x00\x00'
             x += 1
             continue
-        elif c == "~" and data[x+1] == ">":
+        elif c == b"~" and data[x+1] == b">":
             if len(group) != 0:
                 # cannot have a final group of just 1 char
                 assert len(group) > 1
@@ -148,7 +148,7 @@ def ASCII85Decode(data, decodeParms=None):
         else:
             c = ord(c) - 33
             if c < 0 and c > 85:
-                return 'ASCII85Decode error'
+                return b'ASCII85Decode error'
             group += [ c ]
         if len(group) >= 5:
             b = group[0] * (85**4) + \
@@ -157,67 +157,66 @@ def ASCII85Decode(data, decodeParms=None):
                 group[3] * 85 + \
                 group[4]
             assert b < (2**32)
-            c4 = chr((b >> 0) % 256)
-            c3 = chr((b >> 8) % 256)
-            c2 = chr((b >> 16) % 256)
-            c1 = chr(b >> 24)
+            c4 = bytearray([(b >> 0) % 256])
+            c3 = bytearray([(b >> 8) % 256])
+            c2 = bytearray([(b >> 16) % 256])
+            c1 = bytearray([b >> 24])
             retval += (c1 + c2 + c3 + c4)
             if hitEod:
                 retval = retval[:-4+hitEod]
             group = []
         x += 1
         if x >= len(data):
-            #print "End of stream"
+            #print("End of stream")
             break
     return retval
 
 #streamdataのデコード
 def DecodeStream(obj):
-    #print "%08X"%obj.start_pos
-    if obj.has_key('/Filter'):
-        if isinstance(obj['/Filter'], PDFObj.ArrayObject):
+    #print("%08X"%obj.start_pos)
+    if b'/Filter' in obj.keys():
+        if isinstance(obj[b'/Filter'], PDFObj.ArrayObject):
             #Filterがリスト型の場合
-            #print "/Filter:",obj['/Filter']
-            for i in range(0,len(obj['/Filter'])):
-                if obj['/Filter'][i] == '/FlateDecode':
+            for i in range(0,len(obj[b'/Filter'])):
+                if obj[b'/Filter'][i] == b'/FlateDecode':
                     #FlateDecode
-                    if obj.has_key('/DecodeParms'):
-                        obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(FlateDecode(obj['__streamdata__'],obj['/DecodeParms']))
+                    if b'/DecodeParms' in obj.keys():
+                        obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(FlateDecode(obj[b'__streamdata__'],obj[b'/DecodeParms']))
                     else:
-                        obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(FlateDecode(obj['__streamdata__']))
+                        obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(FlateDecode(obj[b'__streamdata__']))
                         
-                if obj['/Filter'][i] == '/ASCIIHexDecode':
+                if obj[b'/Filter'][i] == b'/ASCIIHexDecode':
                     #ASCIIHexDecode
-                    obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(ASCIIHexDecode(obj['__streamdata__']))
-                if obj['/Filter'][i] == '/ASCII85Decode':
+                    obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(ASCIIHexDecode(obj[b'__streamdata__']))
+                if obj[b'/Filter'][i] == b'/ASCII85Decode':
                     #ASCII85Decode
-                    obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(ASCII85Decode(obj['__streamdata__']))
-                if obj['/Filter'][i] == '/DCTDecode':
+                    obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(ASCII85Decode(obj[b'__streamdata__']))
+                if obj[b'/Filter'][i] == b'/DCTDecode':
                     #DCTDecode
-                    obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(JPEGCheck.JPEGCheck(obj['__streamdata__']))
-                if obj['/Filter'][i] == '/JBIG2Decode':
+                    obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(JPEGCheck.JPEGCheck(obj[b'__streamdata__']))
+                if obj[b'/Filter'][i] == b'/JBIG2Decode':
                     #JBIG2Decode
-                    obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(JBIG2Decode(obj['__streamdata__']))
+                    obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(JBIG2Decode(obj[b'__streamdata__']))
                 
-        elif isinstance(obj['/Filter'], PDFObj.NameObject):
+        elif isinstance(obj[b'/Filter'], PDFObj.NameObject):
             #Filterが名前型の場合
-            #print "/Filter:",obj['/Filter']
-            if obj['/Filter'] == '/FlateDecode':
+            #print("/Filter:",obj['/Filter'])
+            if obj[b'/Filter'] == b'/FlateDecode':
                 #FlateDecode
-                if obj.has_key('/DecodeParms'):
-                    obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(FlateDecode(obj['__streamdata__'],obj['/DecodeParms']))
+                if b'/DecodeParms' in obj.keys():
+                    obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(FlateDecode(obj[b'__streamdata__'],obj[b'/DecodeParms']))
                 else:
-                    obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(FlateDecode(obj['__streamdata__']))
-            if obj['/Filter'] == '/ASCIIHexDecode':
+                    obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(FlateDecode(obj[b'__streamdata__']))
+            if obj[b'/Filter'] == b'/ASCIIHexDecode':
                 #ASCIIHexDecode
-                obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(ASCIIHexDecode(obj['__streamdata__']))
-            if obj['/Filter'] == '/ASCII85Decode':
+                obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(ASCIIHexDecode(obj[b'__streamdata__']))
+            if obj[b'/Filter'] == b'/ASCII85Decode':
                 #ASCII85Decode
-                obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(ASCII85Decode(obj['__streamdata__']))
-            if obj['/Filter'] == '/DCTDecode':
+                obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(ASCII85Decode(obj[b'__streamdata__']))
+            if obj[b'/Filter'] == b'/DCTDecode':
                 #DCTDecode
-                obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(JPEGCheck.JPEGCheck(obj['__streamdata__']))
-            if obj['/Filter'] == '/JBIG2Decode':
+                obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(JPEGCheck.JPEGCheck(obj[b'__streamdata__']))
+            if obj[b'/Filter'] == b'/JBIG2Decode':
                 #JBIG2Decode
-                obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(JBIG2Decode(obj['__streamdata__']))
+                obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(JBIG2Decode(obj[b'__streamdata__']))
     return obj

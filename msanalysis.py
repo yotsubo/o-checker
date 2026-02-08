@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2014-2017 Yuhei Otsubo
+Copyright (c) 2014-2026 Yuhei Otsubo
 Released under the MIT license
 http://opensource.org/licenses/mit-license.php
 """
@@ -45,40 +45,40 @@ ppath = os.path.abspath(os.path.dirname(__file__))
 os.chdir(ppath)
 
 #ヘッダをチェック
-if lines[:8] == '\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1':
-    print 'Compound File'
+if lines[:8] == b'\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1':
+    print('Compound File')
     SSZ = 2**struct.unpack("<h",lines[30:30+2])[0]
-#    print 'Size of Sector:',SSZ
+#    print('Size of Sector:',SSZ)
     SSSZ = 2**struct.unpack("<h",lines[32:32+2])[0]
-#    print 'Size of Short Sector:',SSSZ
+#    print('Size of Short Sector:',SSSZ)
     SATnum = struct.unpack("<i",lines[44:44+4])[0]
-#    print 'number of SAT',SATnum
+#    print''number of SAT',SATnum)
     SSATnum = struct.unpack("<i",lines[64:64+4])[0]
-#    print 'number of SSAT',SSATnum
+#    print('number of SSAT',SSATnum)
     MSATnum = struct.unpack("<i",lines[72:72+4])[0]
-#    print 'number of MSAT',MSATnum
-    print (SATnum+MSATnum+1+SSATnum)*SSZ
+#    print('number of MSAT',MSATnum)
+    print((SATnum+MSATnum+1+SSATnum)*SSZ)
 
     if flag_win32:
         cmd = "docfileparser.py " + '"' + filename + '"' + ""
     else:   
         cmd = "python "+"docfileparser.py " + '"' + filename + '"' + ""
     result = os.popen(cmd).read()
-    print result
+    print(result)
 
-    p = re.compile("unknown data:\s+([+-]*\d+)")
+    p = re.compile("unknown data:\\s+([+-]*\\d+)")
     m = p.search(result)
     if m:
         size1 = int(m.groups()[0])
-        p = re.compile("unused sector\s+(\d+)")
+        p = re.compile("unused sector\\s+(\\d+)")
         m = p.search(result)
         size2 = int(m.groups()[0])
         if size1-size2 > 512:
-            print 'Suspicious 2'
+            print('Suspicious 2')
             mal = True
     else:
         #error
-        print 'Suspicious 1'
+        print('Suspicious 1')
         sus = True
         #mal = True
     if result.find("suspicious unused sector!") != -1:
@@ -99,12 +99,12 @@ if lines[:8] == '\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1':
         mal = True
     
 
-elif lines[:4] == '{\\rt':
-    print 'Rich Text File'
+elif lines[:4] == b'{\\rt':
+    print('Rich Text File')
     pos = 0
     tok = lines[pos]
-    if tok != '{':
-        print 'error'
+    if tok != b'{'[0]:
+        print('error')
     parens = 1
     pos += 1
     eof = len(lines)
@@ -113,43 +113,43 @@ elif lines[:4] == '{\\rt':
             break
         tok = lines[pos]
         pos += 1
-        if tok == '{':
+        if tok == b'{'[0]:
             parens += 1
-        elif tok == '}':
+        elif tok == b'}'[0]:
             parens -= 1
             if parens == 0:
                 break
-        elif tok == '\\':
+        elif tok == b'\\'[0]:
             pos += 1
-    print 'unknown data size:',eof-pos
+    print('unknown data size:',eof-pos)
     if eof-pos > 512:
-        print 'Suspicious 3'
+        print('Suspicious 3')
         mal = True
     ascii = True
     for i in range(eof):
-        tok = ord(lines[i])
+        tok = lines[i]
         if tok >= 0x7f:
             ascii = False
-            print '%08X' % i
+            print('%08X' % i)
             break
     if not ascii and False:
-        print 'Suspicious 4'
+        print('Suspicious 4')
         mal = True
 else:
-    print 'Error'
+    print('Error')
 
 #ジャッジモード～ここから
 if args.judge:
     if mal:
-        print 'Malicious!'
+        print('Malicious!')
     elif sus:
-        print 'Suspicious!'
+        print('Suspicious!')
     else:
-        print 'None!'
+        print('None!')
                 
 #ジャッジモード～ここまで
     
 t2 = time.time()
-print 'run time:', t2 - t1, 'sec'
+print('run time:', t2 - t1, 'sec')
 
 sys.exit()

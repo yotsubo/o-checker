@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2014-2017 Yuhei Otsubo
+Copyright (c) 2014-2026 Yuhei Otsubo
 Released under the MIT license
 http://opensource.org/licenses/mit-license.php
 """
@@ -12,8 +12,8 @@ import argparse
 #正規表現を使用
 import re
 import time
-import lib.PDFFile
-import lib.PDFObj
+from lib import PDFFile
+from lib import PDFObj
 
 #コマンドラインオプション
 parser = argparse.ArgumentParser(description='PDF File Analysis Tool')
@@ -41,7 +41,7 @@ t1 = time.time()
 
 #pdfファイルを読み込み
 filename = args.FileName
-pdffile = lib.PDFFile.PDFFile()
+pdffile = PDFFile.PDFFile()
 pdffile.ReadFile(filename,args.password)
 
 if args.object:
@@ -55,64 +55,64 @@ else:
 
     #オブジェクトの属性を分析
     fDecrypt = True
-    if pdffile.encrypt and pdffile.encryption_key == '':
+    if pdffile.encrypt and pdffile.encryption_key == b'':
         #暗号化PDFの暗号化キーの取り出しが失敗している場合
         fDecrypt = False
     for obj in pdffile.obj:
-        if (obj.fOBJ or obj.fOldOBJ) and isinstance(obj, lib.PDFObj.DictionaryObject):
-            if obj.has_key('__streamdata__'):
+        if (obj.fOBJ or obj.fOldOBJ) and isinstance(obj, PDFObj.DictionaryObject):
+            if b'__streamdata__' in obj.keys():
                 #malicious JBIG2
-                p = re.compile('JBIG2 Error')
-                m = p.search(obj['__streamdata__'])
+                p = re.compile(b'JBIG2 Error')
+                m = p.search(obj[b'__streamdata__'])
                 if m and fDecrypt:
-                    print 'obj',obj.getID(),obj.getGeneration(),'malicious JBIG2'
-                    print obj['__streamdata__']
+                    print('obj',obj.getID(),obj.getGeneration(),'malicious JBIG2')
+                    print(obj[b'__streamdata__'])
                     judge = True
                 #malicious jpeg
-                p = re.compile('Malicious JPEG')
-                m = p.search(obj['__streamdata__'])
+                p = re.compile(b'Malicious JPEG')
+                m = p.search(obj[b'__streamdata__'])
                 if m and fDecrypt:
-                    print 'obj',obj.getID(),obj.getGeneration(),'malicious jpeg'
-                    print obj['__streamdata__']
+                    print('obj',obj.getID(),obj.getGeneration(),'malicious jpeg')
+                    print(obj[b'__streamdata__'])
                     judge = True
                 #zlib decompress error
-                p = re.compile('zlib decompress error')
-                m = p.match(obj['__streamdata__'])
+                p = re.compile(b'zlib decompress error')
+                m = p.match(obj[b'__streamdata__'])
                 if m and fDecrypt:
-                    print 'obj',obj.getID(),obj.getGeneration(),'zlib decompress error'
+                    print('obj',obj.getID(),obj.getGeneration(),'zlib decompress error')
                     judge = True
                 #zlib decompress unused data
-                p = re.compile('__UnusedData__(\d+)__')
-                m = p.search(obj['__streamdata__'])
+                p = re.compile(b'__UnusedData__(\\d+)__')
+                m = p.search(obj[b'__streamdata__'])
                 if m:
                     if (int)(m.groups()[0]) > 48:
-                        print 'obj',obj.getID(),obj.getGeneration(),'zlib decompress unused data:',m.groups()[0]
+                        print('obj',obj.getID(),obj.getGeneration(),'zlib decompress unused data:',m.groups()[0])
                         judge = True
                 #xml form
-                p = re.compile('(<\?xml)|(xmlns)')
-                m = p.search(obj['__streamdata__'])
+                p = re.compile(b'(<\\?xml)|(xmlns)')
+                m = p.search(obj[b'__streamdata__'])
                 if m:
-                    print 'obj',obj.getID(),obj.getGeneration(),'xml form'
+                    print('obj',obj.getID(),obj.getGeneration(),'xml form')
                 #SWF File
-                p = re.compile('[CF]WS')
-                m = p.match(obj['__streamdata__'])
+                p = re.compile(b'[CF]WS')
+                m = p.match(obj[b'__streamdata__'])
                 if m:
-                    print 'obj',obj.getID(),obj.getGeneration(),'SWF File'
-            if obj.has_key('/JS'):
-                print 'obj',obj.getID(),obj.getGeneration(),'Javascript'
+                    print('obj',obj.getID(),obj.getGeneration(),'SWF File')
+            if b'/JS' in obj.keys():
+                print('obj',obj.getID(),obj.getGeneration(),'Javascript')
         elif obj.fComment:
-            p = re.compile('%PDF-')
+            p = re.compile(b'%PDF-')
             m = p.match(obj)
             if m:
                 if obj.start_pos != 0:
-                    print 'Suspicious PDF Header'
+                    print('Suspicious PDF Header')
 
 
     if not fDecrypt:
-        print "Decryption fail"
+        print("Decryption fail")
     if output.find("ObjStm") != -1 or output.find("XrefStm") != -1:
         fObjStm = True
-        print "ObjStm or XrefStm"
+        print("ObjStm or XrefStm")
     else:
         fObjStm = False
         
@@ -130,20 +130,20 @@ else:
             if output.find("unknown(suspicious)") != -1:
                 sus = True
         if judge:
-            print 'Malicious!'
+            print('Malicious!')
         elif sus:
-            print 'Suspicious!'
+            print('Suspicious!')
         else:
-            print 'None!'
+            print('None!')
 
     #暗号化PDFか否かチェック
     if args.ccheck:
         if pdffile.encrypt:
-            print "Encrypted PDF"
+            print("Encrypted PDF")
                     
     #ジャッジモード～ここまで
      
     t2 = time.time()
-    print 'run time:', t2 - t1, 'sec'
+    print('run time:', t2 - t1, 'sec')
 
 sys.exit()

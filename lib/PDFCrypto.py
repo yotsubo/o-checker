@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2014-2017 Yuhei Otsubo
+Copyright (c) 2014-2026 Yuhei Otsubo
 Released under the MIT license
 http://opensource.org/licenses/mit-license.php
 """
@@ -19,101 +19,101 @@ else:
     from hashlib import md5
 #BASE64用
 import base64
-import PDFObj
+from . import PDFObj
 
 #RC4
 def RC4_encrypt(key, plaintext):
     S = [i for i in range(256)]
     j = 0
     for i in range(256):
-        j = (j + S[i] + ord(key[i % len(key)])) % 256
+        j = (j + S[i] + key[i % len(key)]) % 256
         S[i], S[j] = S[j], S[i]
     i, j = 0, 0
-    retval = ""
+    retval = bytearray()
     for x in range(len(plaintext)):
         i = (i + 1) % 256
         j = (j + S[i]) % 256
         S[i], S[j] = S[j], S[i]
         t = S[(S[i] + S[j]) % 256]
-        retval += chr(ord(plaintext[x]) ^ t)
+        retval += bytearray([plaintext[x] ^ t])
+        
     return retval
 
 #暗号化キーの取得
 def get_encryption_key(encrypt,trailer,password):
     #trailerに/IDが登録されていない場合は""とする
-    if not trailer.has_key('/ID'):
+    if b'/ID' not in trailer.keys():
         dmy = PDFObj.ArrayObject()
         dmy.append("")
         dmy.append("")        
-        trailer[PDFObj.NameObject('/ID')] = dmy
-    if encrypt['/V'] == 0:
+        trailer[PDFObj.NameObject(b'/ID')] = dmy
+    if encrypt[b'/V'] == 0:
         #古いバージョン
         #未実装
         return ()
-    elif encrypt['/V'] <= 4:
+    elif encrypt[b'/V'] <= 4:
         #V=1:Algorithm 3.1
         #V=2:(PDF1.4)Algorithm3.1
         #V=3:(PDF1.4)未発表Algorithm
         #V=4:(PDF1.5)A;gorithm 3.1 with a key length of 128 bits
         #パスワードのパッディング
-        _encryption_padding = '\x28\xbf\x4e\x5e\x4e\x75\x8a\x41\x64\x00\x4e\x56\xff\xfa\x01\x08\x2e\x2e\x00\xb6\xd0\x68\x3e\x80\x2f\x0c\xa9\xfe\x64\x53\x69\x7a'
-        password = (password + _encryption_padding)[0:32]
+        _encryption_padding = b'\x28\xbf\x4e\x5e\x4e\x75\x8a\x41\x64\x00\x4e\x56\xff\xfa\x01\x08\x2e\x2e\x00\xb6\xd0\x68\x3e\x80\x2f\x0c\xa9\xfe\x64\x53\x69\x7a'
+        password = (password.encode() + _encryption_padding)[0:32]
         #ハッシュ値の計算
         import struct
         m = md5(password)
-        m.update(encrypt['/O'])
-        p_entry = struct.pack('<i', encrypt['/P'])
+        m.update(encrypt[b'/O'])
+        p_entry = struct.pack('<i', encrypt[b'/P'])
         m.update(p_entry)
-        m.update(trailer['/ID'][0])
-        if encrypt['/R'] >= 4 and encrypt['/EncryptMetadata']=='false':
-            m.update('\xff\xff\xff\xff')
+        m.update(trailer[b'/ID'][0])
+        if encrypt[b'/R'] >= 4 and encrypt[b'/EncryptMetadata']=='false':
+            m.update(b'\xff\xff\xff\xff')
         md5_hash = m.digest()
-        if encrypt['/R'] >= 3:
+        if encrypt[b'/R'] >= 3:
             for i in range(50):
-                md5_hash = md5(md5_hash[:encrypt['/Length']/8]).digest()
-        encryption_key = md5_hash[:encrypt['/Length']/8]
-
+                md5_hash = md5(md5_hash[:encrypt[b'/Length']//8]).digest()
+        encryption_key = md5_hash[:encrypt[b'/Length']//8]
         #正しいユーザーパスワードかチェック
-        if encrypt['/R'] == 2:
-            if encrypt['/U'] == RC4_encrypt(encryption_key, password):
-                print "R=2:暗号化キー取り出し成功"
+        if encrypt[b'/R'] == 2:
+            if encrypt[b'/U'] == RC4_encrypt(encryption_key, password):
+                print("R=2:暗号化キー取り出し成功")
                 #要検証
             else:
-                print "R=2:暗号化キー取り出し失敗"
-                return ''
+                print("R=2:暗号化キー取り出し失敗")
+                return b''
                 
-        elif encrypt['/R'] >= 3:
+        elif encrypt[b'/R'] >= 3:
             m = md5()
             m.update(_encryption_padding)
-            m.update(trailer['/ID'][0])
+            m.update(trailer[b'/ID'][0])
             val = RC4_encrypt(encryption_key, m.digest()[:16])
             for i in range (1,20):
-                new_key = ''
+                new_key = bytearray()
                 for l in range(len(encryption_key)):
-                    new_key += chr(ord(encryption_key[l]) ^ i)
+                    new_key += bytearray([encryption_key[l] ^ i])
                 val = RC4_encrypt(new_key, val)
-            val += '\x00' * 16
-            if val[:16] == encrypt['/U'][:16]:
-                print "R>=3:暗号化キー取り出し成功"
+            val += b'\x00' * 16
+            if val[:16] == encrypt[b'/U'][:16]:
+                print("R>=3:暗号化キー取り出し成功")
 
             else:
-                print "R>=3:暗号化キー取り出し失敗"#,val,encrypt['/U']
-                return ''
+                print("R>=3:暗号化キー取り出し失敗")
+                return b''
             
             return encryption_key
             
         return encryption_key
         
-    elif encrypt['/V'] == 5:
+    elif encrypt[b'/V'] == 5:
         #(PDF1.7 ExtensionLevel 3) Algorithm 3.1a with a key length of 256 bits
         #256bitAES
-        print "256bitAES"
+        print("256bitAES")
         if isinstance(password, unicode):
             password.encode('utf-8')
             #print "変換",len(password)
         
         #パスワードがユーザーパスワードと一致するかチェック
-        v_salt = encrypt['/U'][32:40]
+        v_salt = encrypt[b'/U'][32:40]
         #print "Validation Salt:", v_salt
         seed = ""
         for i in range(0,len(password)):
@@ -122,16 +122,16 @@ def get_encryption_key(encrypt,trailer,password):
             seed += chr(ord(v_salt[i]))
         sha256 = hashlib.sha256(seed).digest()
         #print sha256
-        #print encrypt['/O'][0:32]
-        #print encrypt['/U'][0:32]
-        if encrypt['/O'][0:32]==sha256:
+        #print encrypt[b'/O'][0:32]
+        #print encrypt[b'/U'][0:32]
+        if encrypt[b'/O'][0:32]==sha256:
             #バグあり
-            print "オーナーパスワードは:",password
+            print("オーナーパスワードは:",password)
             
-        elif encrypt['/U'][0:32]==sha256:
-            #print "ユーザーパスワードは:",password
+        elif encrypt[b'/U'][0:32]==sha256:
+            #print("ユーザーパスワードは:",password)
             #暗号化キーを取得
-            key_salt = encrypt['/U'][40:48]
+            key_salt = encrypt[b'/U'][40:48]
             seed = ""
             for i in range(0,len(password)):
                 seed += chr(ord(password[i]))
@@ -140,32 +140,32 @@ def get_encryption_key(encrypt,trailer,password):
             intermediate_user_key = hashlib.sha256(seed).digest()
             iv = chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)+chr(0)
             obj = Crypto.Cipher.AES.new(intermediate_user_key, Crypto.Cipher.AES.MODE_CBC,iv)
-            encryption_key = obj.decrypt(encrypt['/UE'][0:32])
+            encryption_key = obj.decrypt(encrypt[b'/UE'][0:32])
             #print "暗号化キー:",encryption_key
             #Permを復号->正しい暗号化キーなら9-11バイト目が'a','d','b'
             obj2 = Crypto.Cipher.AES.new(encryption_key, Crypto.Cipher.AES.MODE_ECB,iv)
-            perms = obj2.decrypt(encrypt['/Perms'][0:16])
+            perms = obj2.decrypt(encrypt[b'/Perms'][0:16])
             #print "Perms:",encrypt['/Perms'][0:16],perms
             if perms[9:12] == "adb":
-                print "暗号化キー取り出し成功"
+                print("暗号化キー取り出し成功")
                 return encryption_key
             else:
-                print "暗号化キー取り出し失敗"
-                return ''
+                print("暗号化キー取り出し失敗")
+                return b''
             
         else:
-            print "ユーザーパスワードが一致しませんでした"
+            print("ユーザーパスワードが一致しませんでした")
     return ()
 
 #復号化
 def decryptString(encrypt, encryption_key, line,no = 0,gen = 0):
     if encryption_key == '':
         return
-    if encrypt['/V'] == 0:
+    if encrypt[b'/V'] == 0:
         #古いバージョン(未対応)
         #未実装
         return ()
-    elif encrypt['/V'] == 1:
+    elif encrypt[b'/V'] == 1:
         #Algorithm 3.1
         #40bitRC4に決めうち
         import struct
@@ -176,7 +176,7 @@ def decryptString(encrypt, encryption_key, line,no = 0,gen = 0):
         
         ret = RC4_encrypt(key,line)
         return ret
-    elif encrypt['/V'] == 2:
+    elif encrypt[b'/V'] == 2:
         #(PDF1.4)Algorithm3.1
         #128bitRC4に決めうち
         import struct
@@ -187,14 +187,14 @@ def decryptString(encrypt, encryption_key, line,no = 0,gen = 0):
         
         ret = RC4_encrypt(key,line)
         return ret
-    elif encrypt['/V'] == 3:
+    elif encrypt[b'/V'] == 3:
         #(PDF1.4)未発表Algorithm
         #未実装
         return ()
-    elif encrypt['/V'] == 4:
+    elif encrypt[b'/V'] == 4:
         #(PDF1.5)A;gorithm 3.1 with a key length of 128 bits
         #128bitAES or 128bitRC4に決めうち
-        if encrypt['/CF']['/StdCF']['/CFM'] == '/V2':
+        if encrypt[b'/CF'][b'/StdCF'][b'/CFM'] == b'/V2':
             #128bitRC4
             import struct
             pack1 = struct.pack('<i', no)[:3]
@@ -212,14 +212,14 @@ def decryptString(encrypt, encryption_key, line,no = 0,gen = 0):
             encryption_key += struct.pack('<i', no)[:3]
             encryption_key += struct.pack('<i', gen)[:2]
             
-            encryption_key += '\x73\x41\x6C\x54'
+            encryption_key += b'\x73\x41\x6C\x54'
             m = md5(encryption_key)
             
             obj = Crypto.Cipher.AES.new(m.digest(), Crypto.Cipher.AES.MODE_CBC,iv)
             #16バイト単位に変換
             m = 16 - (len(line) % 16)
             for i in range(0,m):
-                line += chr(m)
+                line += bytearray([m])
             ret = obj.decrypt(line[16:])
             return ret
     elif encrypt['/V'] == 5:
@@ -238,11 +238,11 @@ def decryptString(encrypt, encryption_key, line,no = 0,gen = 0):
 def DecryptObject(encrypt, encryption_key, obj,no=0,gen=0):
     if isinstance(obj, PDFObj.DictionaryObject):
         for key in obj:
-            if key == '__streamdata__':
-                if not obj.has_key('/Type'):
+            if key == b'__streamdata__':
+                if b'/Type' not in obj.keys():
                     obj[key] = PDFObj.StringObject(decryptString(encrypt, encryption_key, obj[key], no, gen))
-                elif obj['/Type'] == '/Metadata':
-                    if encrypt['/EncryptMetadata'] == 'true':
+                elif obj[b'/Type'] == b'/Metadata':
+                    if encrypt[b'/EncryptMetadata'] == b'true':
                         obj[key] = PDFObj.StringObject(decryptString(encrypt, encryption_key, obj[key], no, gen))
                 else:
                     obj[key] = PDFObj.StringObject(decryptString(encrypt, encryption_key, obj[key], no, gen))

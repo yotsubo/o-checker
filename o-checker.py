@@ -1,7 +1,7 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2015-2017 Yuhei Otsubo
+Copyright (c) 2015-2026 Yuhei Otsubo
 Released under the MIT license
 http://opensource.org/licenses/mit-license.php
 """
@@ -41,38 +41,38 @@ if lines[:8] == '\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1':
     if flag_win32:
         cmd = "msanalysis.py " + '"' + filename + '"' + " -j"
     else:   
-        cmd = "python "+"msanalysis.py " + '"' + filename + '"' + " -j"
+        cmd = "python3 "+"msanalysis.py " + '"' + filename + '"' + " -j"
     result = os.popen(cmd).read()
     p = re.compile("Malicious!")
     m = p.search(result)
     if m:
-        print "Malicious!"
+        print("Malicious!")
     else:
-        print 'None!'
+        print('None!')
 elif lines[:4] == '{\\rt':
     if flag_win32:
         cmd = "msanalysis.py " + '"' + filename + '"' + " -j"
     else:   
-        cmd = "python "+"msanalysis.py " + '"' + filename + '"' + " -j"
+        cmd = "python3 "+"msanalysis.py " + '"' + filename + '"' + " -j"
     result = os.popen(cmd).read()
     p = re.compile("Malicious!")
     m = p.search(result)
     if m:
-        print "Malicious!"
+        print("Malicious!")
     else:
-        print 'None!'
+        print('None!')
 else:
     if flag_win32:
         cmd ="pdfanalysis.py " + '"' + filename + '"' + " -j"
     else:   
-        cmd = "python "+"pdfanalysis.py " + '"' + filename + '"' + " -j"
+        cmd = "python3 "+"pdfanalysis.py " + '"' + filename + '"' + " -j"
     result = os.popen(cmd).read()
     p = re.compile("Malicious!")
     m = p.search(result)
     if m:
-        print "Malicious!"
+        print("Malicious!")
     else:
-        print 'None!'
+        print('None!')
 
 
 sys.exit()

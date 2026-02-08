@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2014-2017 Yuhei Otsubo
+Copyright (c) 2014-2026 Yuhei Otsubo
 Released under the MIT license
 http://opensource.org/licenses/mit-license.php
 """
@@ -52,8 +52,8 @@ class PdfObject(object):
 
 #小数型
 class FloatObject(decimal.Decimal,PdfObject):
-    def __new__(cls, value='0', context=None):
-        return decimal.Decimal.__new__(cls, str(value), context)
+    def __new__(cls, value=b'0', context=None):
+        return decimal.Decimal.__new__(cls, value.decode(), context)
     
 #数値型
 class NumberObject(int,PdfObject):
@@ -64,10 +64,10 @@ class NumberObject(int,PdfObject):
         start_pos = stream.get_pos()
         phrase = stream.read_phrase_u()
         end_pos = stream.get_pos()
-        p = re.compile("([-+]?([0-9]+(\.[0-9]*)?|\.[0-9]+)?)")
+        p = re.compile(b"([-+]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)?)")
         m = p.match(phrase)
         if m:
-            if m.groups()[0].find('.') != -1:
+            if m.groups()[0].find(b'.') != -1:
                 ret = FloatObject(m.groups()[0])
                 ret.start_pos = start_pos
                 ret.end_pos = end_pos
@@ -83,32 +83,32 @@ class NumberObject(int,PdfObject):
 
  
 #文字列型
-class StringObject(str,PdfObject):
+class StringObject(bytes,PdfObject):
         
     def __init__(self,value):
-        str.__init__(value)
+        bytes.__init__(value)
     def ReadFromStreamHex(self,stream):
         pos = stream.get_pos()
         start_pos = stream.get_pos()
         tok = stream.get_u()
-        if tok != '<':
+        if tok != b'<':
             stream.set_pos(pos)
             return NullObject
-        x = ''
-        txt = ''
+        x = bytearray()
+        txt = bytearray()
         while True:
             stream.skip_blank()
             tok = stream.get()
-            if tok == '>':
+            if tok == b'>':
                 break
             x += tok
             if len(x) == 2:
-                txt += chr(int(x, base=16))
-                x = ''
+                txt += bytearray([int(x, base=16)])
+                x = bytearray()
         if len(x) == 1:
-            x += '0'
+            x += b'0'
         if len(x) == 2:
-            txt += chr(int(x, base=16))
+            txt += bytearray([int(x, base=16)])
         end_pos = stream.get_pos()
         ret = StringObject(txt)
         ret.start_pos = start_pos
@@ -118,39 +118,39 @@ class StringObject(str,PdfObject):
         pos = stream.get_pos()
         start_pos = stream.get_pos()
         tok = stream.get_u()
-        if tok != '(':
+        if tok != b'(':
             stream.set_pos(pos)
             return NullObject()
         parens = 1
-        txt = ''
+        txt = bytearray()
         while True:
             tok = stream.get()
-            if tok == 'EOF':
+            if tok == b'EOF':
                 break
-            elif tok == '(':
+            elif tok == b'(':
                 parens += 1
-            elif tok == ')':
+            elif tok == b')':
                 parens -= 1
                 if parens == 0:
                     break
-            elif tok == '\\':
+            elif tok == b'\\':
                 tok = stream.get()
-                if tok == 'n':
-                    tok = '\n'
-                elif tok == 'r':
-                    tok = '\r'
-                elif tok == 't':
-                    tok = '\t'
-                elif tok == 'b':
-                    tok = '\b'
-                elif tok == 'f':
-                    tok = '\f'
-                elif tok == '(':
-                    tok = '('
-                elif tok == ')':
-                    tok = ')'
-                elif tok == '\\':
-                    tok = '\\'
+                if tok == b'n':
+                    tok = b'\n'
+                elif tok == b'r':
+                    tok = b'\r'
+                elif tok == b't':
+                    tok = b'\t'
+                elif tok == b'b':
+                    tok = b'\b'
+                elif tok == b'f':
+                    tok = b'\f'
+                elif tok == b'(':
+                    tok = b'('
+                elif tok == b')':
+                    tok = b')'
+                elif tok == b'\\':
+                    tok = b'\\'
                 elif tok.isdigit():
                     # "The number ddd may consist of one, two, or three
                     # octal digits; high-order overflow shall be ignored.
@@ -166,23 +166,23 @@ class StringObject(str,PdfObject):
                         else:
                             break
                     try:
-                        tok = chr(int(tok, base=8))
+                        tok = bytearray([int(tok, base=8)])
                     except:
                         #変換に失敗した場合はそのまま
                         tok = tok
-            elif tok in '\n\r':
+            elif tok in b'\n\r':
                 # This case is  hit when a backslash followed by a line
                 # break occurs.  If it's a multi-char EOL, consume the
                 # second character:
                 pos = stream.get_pos()
                 tok = stream.get()
-                if not tok in "\n\r":
+                if not tok in b"\n\r":
                     stream.set_pos(pos)
                 else:
                     break
                 # Then don't add anything to the actual string, since this
                 # line break was escaped:
-                tok = ''
+                tok = bytearray()
             #else:#読み込みエラー
                 
             txt += tok
@@ -193,29 +193,29 @@ class StringObject(str,PdfObject):
         return ret
                 
 #名前型
-class NameObject(str,PdfObject):
+class NameObject(bytes,PdfObject):
 
     def __init__(self, value):
-        str.__init__(value)
+        bytes.__init__(value)
     def ReadFromStream(self,stream):
         start_pos = stream.get_pos()
         pos = stream.get_pos()
         tok = stream.get_u()
-        if tok != '/':
+        if tok != b'/':
             stream.set_pos(pos)
             return NullObject()
         phrase = tok + stream.read_phrase_u()
-        p = re.compile("//")
+        p = re.compile(b"//")
         m = p.match(phrase)
         if m:
             stream.set_pos(start_pos)
             stream.get_u()
-            ret = NameObject("")
+            ret = NameObject(b"")
             ret.start_pos = start_pos
             ret.end_pos = start_pos
             return ret
 
-        p = re.compile("(/[^\s\(\)\<\>\[\]\{\}/\%]*)")
+        p = re.compile(b"(/[^\\s\\(\\)\\<\\>\\[\\]\\{\\}/\\%]*)")
         m = p.match(phrase)
         end_pos = stream.get_pos()
         if m:
@@ -238,14 +238,14 @@ class BooleanObject(PdfObject):
         pos = stream.get_pos()
         phrase = stream.read_phrase_u()
         end_pos = stream.get_pos()
-        p = re.compile("true")
+        p = re.compile(b"true")
         m = p.match(phrase)
         if m:
             ret = BooleanObject(True)
             ret.start_pos = start_pos
             ret.end_pos = end_pos
             return ret
-        p = re.compile("false")
+        p = re.compile(b"false")
         m = p.match(phrase)
         if m:
             ret = BooleanObject(False)
@@ -264,7 +264,7 @@ class NullObject(PdfObject):
         pos = stream.get_pos()
         phrase = stream.read_phrase_u()
         end_pos = stream.get_pos()
-        p = re.compile("null")
+        p = re.compile(b"null")
         m = p.match(phrase)
         if m:
             ret = NullObject()
@@ -281,7 +281,7 @@ class ArrayObject(list,PdfObject):
         arr = ArrayObject()
         pos = stream.get_pos()
         tok = stream.get_u()
-        if tok != '[':
+        if tok != b'[':
             stream.set_pos(pos)
             return NullObject()
         while True:
@@ -291,7 +291,7 @@ class ArrayObject(list,PdfObject):
             tok = stream.get_u()
             stream.bak_pos()
             # check for array ending
-            if tok == ']' or tok == 'EOF':
+            if tok == b']' or tok == b'EOF':
                 stream.get_u()
                 break
             # read and append obj
@@ -310,7 +310,7 @@ class DictionaryObject(dict, PdfObject):
         elif len(args) == 1:
             arr = args[0]
             # If we're passed a list/tuple, make a dict out of it
-            if not hasattr(arr, "iteritems"):
+            if not hasattr(arr, "items"):
                 newarr = {}
                 for k, v in arr:
                     newarr[k] = v
@@ -322,7 +322,7 @@ class DictionaryObject(dict, PdfObject):
     def update(self, arr):
         # note, a ValueError halfway through copying values
         # will leave half the values in this dict.
-        for k, v in arr.iteritems():
+        for k, v in arr.items():
             self.__setitem__(k, v)
 
     def raw_get(self, key):
@@ -350,7 +350,7 @@ class DictionaryObject(dict, PdfObject):
         pos = stream.get_pos()
         tok = stream.get_u() + stream.get_u()
         data = {}
-        if tok != '<<':
+        if tok != b'<<':
             stream.set_pos(pos)
             return NullObject()
 
@@ -361,10 +361,10 @@ class DictionaryObject(dict, PdfObject):
             tok = stream.get_u()
             stream.bak_pos()
             # check for array ending
-            if tok == '>' or tok == 'EOF':
+            if tok == b'>' or tok == b'EOF':
                 tok = stream.get_u()
                 tok = stream.get_u()
-                if tok != '>':
+                if tok != b'>':
                     stream.bak_pos()
                 break
             # read and append obj
@@ -374,15 +374,15 @@ class DictionaryObject(dict, PdfObject):
 
             tok = stream.get_u()
             stream.bak_pos()
-            if tok == '>':
+            if tok == b'>':
                 #valueが定義されていない場合はnullとして扱う
                 value = NullObject()
             else:
                 value = ReadObject(stream)
             #print key,value
-            if data.has_key(key):
+            if key in data.keys():
                 #multiple difinitions of key not mermitted
-                print "同じキーが複数あります"
+                print("同じキーが複数あります")
             data[key] = value
         end_pos = stream.get_pos()
         ret = DictionaryObject()
@@ -407,10 +407,10 @@ class IndirectObject(PdfObject):
         start_pos = stream.get_pos()
         pos = stream.get_pos()
         phrase = stream.read_phrase_u()
-        phrase += ' ' + stream.read_phrase_u()
-        phrase += ' ' + stream.read_phrase_u()
+        phrase += b' ' + stream.read_phrase_u()
+        phrase += b' ' + stream.read_phrase_u()
         end_pos = stream.get_pos()
-        p = re.compile("(\d+)\s+(\d+)\s+R")
+        p = re.compile(b"(\\d+)\\s+(\\d+)\\s+R")
         m = p.match(phrase)
         if m:
             ret = IndirectObject(int(m.groups()[0]),int(m.groups()[1]))
@@ -427,44 +427,44 @@ def ReadObject(stream):
     tok = stream.get_u()
     #print "%08X"%pos,tok
     stream.bak_pos()
-    if tok=='t' or tok=='f':
+    if tok==b't' or tok==b'f':
         #boolean
         ret = BooleanObject(True)
         return ret.ReadFromStream(stream)
-    elif tok == '(':
+    elif tok == b'(':
         #string
-        ret = StringObject('')
+        ret = StringObject(b'')
         return ret.ReadFromStream(stream)
-    elif tok == '/':
+    elif tok == b'/':
         #name
-        ret = NameObject('')
+        ret = NameObject(b'')
         return ret.ReadFromStream(stream)
-    elif tok == '[':
+    elif tok == b'[':
         #list
         ret = ArrayObject()
         return ret.ReadFromStream(stream)
-    elif tok == 'n':
+    elif tok == b'n':
         #null
         ret = NullObject()
         return ret.ReadFromStream(stream)
-    elif tok == '<':
+    elif tok == b'<':
         peek = stream.get_u() + stream.get_u()
         stream.set_pos(pos)
-        if peek == '<<':
+        if peek == b'<<':
             #dictionary
             ret = DictionaryObject()
             return ret.ReadFromStream(stream)
         else:
             #文字列(16進数表記)
-            ret = StringObject("")
+            ret = StringObject(b"")
             return ret.ReadFromStreamHex(stream)
-    elif tok == '%':
+    elif tok == b'%':
         #coment
         stream.read_line()
         return ReadObject(stream)
-    elif tok == 'e':
+    elif tok == b'e':
         peek = stream.read_phrase_u()
-        if peek =='endobj':
+        if peek == b'endobj':
             #endobjの場合とりあえずnullにする
             #stream.set_pos(pos)
             ret = NullObject()
@@ -475,22 +475,22 @@ def ReadObject(stream):
             return ret
     else:
         #number or indirect reference
-        if tok == '+' or tok == '-':
+        if tok == b'+' or tok == b'-':
             #number
             ret = NumberObject(0)
             return ret.ReadFromStream(stream)
         phrase = stream.read_phrase_u()
-        phrase += ' ' + stream.read_phrase_u()
-        phrase += ' ' + stream.read_phrase_u()
+        phrase += b' ' + stream.read_phrase_u()
+        phrase += b' ' + stream.read_phrase_u()
         stream.set_pos(pos)
-        p = re.compile("(\d+)\s+(\d+)\s+R")
+        p = re.compile(b"(\\d+)\\s+(\\d+)\\s+R")
         m = p.match(phrase)
         if m:
             #indirect reference
             ret = IndirectObject(0,0)
             return ret.ReadFromStream(stream)
         else:
-            if tok in '0123456789.':
+            if tok in b'0123456789.':
                 #number
                 ret = NumberObject(0)
                 return ret.ReadFromStream(stream)

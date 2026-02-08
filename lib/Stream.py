@@ -1,14 +1,14 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2014-2017 Yuhei Otsubo
+Copyright (c) 2014-2026 Yuhei Otsubo
 Released under the MIT license
 http://opensource.org/licenses/mit-license.php
 """
 
 class Stream:
     def __init__(self):
-        self.lines = ""
+        self.lines = bytearray()
         self.analysis = {}
         self.pos = 0
         
@@ -39,9 +39,9 @@ class Stream:
         self.pos_ = self.get_pos()
         if self.isEOF():
             self.pos += 1
-            return "EOF"
+            return b"EOF"
         else:
-            ret = self.lines[self.pos]
+            ret = self.lines[self.pos:self.pos+1]
             self.pos += 1
             return ret
 
@@ -49,18 +49,18 @@ class Stream:
     def get_u(self):
         pos = self.get_pos()
         tok = self.get()
-        if tok == "EOF":
-            return "EOF"
-        elif tok == '#':
+        if tok == b"EOF":
+            return b"EOF"
+        elif tok == b'#':
             # '#xx' to charCode
             tok2 = self.get()+self.get()
-            if tok2 == '20' or tok2 == '2F' or tok2== '2f' or tok2 == '28' or tok2 == '29' or tok2 == '25' or tok2 == '5b' or tok2 == '5B' or tok2 == '5d' or tok2 == '5D':
+            if tok2 == b'20' or tok2 == b'2F' or tok2== b'2f' or tok2 == b'28' or tok2 == b'29' or tok2 == b'25' or tok2 == b'5b' or tok2 == b'5B' or tok2 == b'5d' or tok2 == b'5D':
                 #空白,\()%の場合は変換しない
                 ret = tok
                 self.add_pos(-2)
             else:
                 try:
-                    ret = chr(int(tok2, base=16))
+                    ret = bytearray(int(tok2, base=16))
                 except ValueError:
                     ret = tok
                     self.add_pos(-2)
@@ -77,28 +77,28 @@ class Stream:
     def skip_blank(self):
         pos = self.get_pos()
         tok = self.get_u()
-        while tok in ('\x00','\r','\n','\t','\f',' '):
+        while tok in (b'\x00',b'\r',b'\n',b'\t',b'\f',b' '):
             pos = self.get_pos()
             tok = self.get_u()
         self.set_pos(pos)
                 
 
     def read_line(self):
-        ret = ""
+        ret = bytearray()
         tok = self.get()
-        while tok != "EOF":
-            if tok == '\r':
+        while tok != b"EOF":
+            if tok == b'\r':
                 ret += tok
                 tok2 = self.get()
-                if tok2 == '\n':
+                if tok2 == b'\n':
                     ret += tok2
                 else:
                     self.add_pos(-1)
                 break
-            elif tok == '\n':
+            elif tok == b'\n':
                 ret += tok
                 tok2 = self.get()
-                if tok2 == '\r':
+                if tok2 == b'\r':
                     ret += tok2
                 else:
                     self.add_pos(-1)
@@ -109,23 +109,23 @@ class Stream:
         return ret
 
     def read_line_u(self):
-        ret = ""
+        ret = bytearray()
         tok = self.get_u()
-        while tok != "EOF":
-            if tok == '\r':
+        while tok != b"EOF":
+            if tok == b'\r':
                 ret += tok
                 pos = self.get_pos()
                 tok2 = self.get_u()
-                if tok2 == '\n':
+                if tok2 == b'\n':
                     ret += tok2
                 else:
                     self.set_pos(pos)
                 break
-            elif tok == '\n':
+            elif tok == b'\n':
                 ret += tok
                 pos = self.get_pos()
                 tok2 = self.get_u()
-                if tok2 == '\r':
+                if tok2 == b'\r':
                     ret += tok2
                 else:
                     self.set_pos(pos)
@@ -137,14 +137,14 @@ class Stream:
     def read_phrase_u(self):
         max_phrase_length = 128
         l = max_phrase_length
-        ret = ""
+        ret = bytearray()
         #self.skip_blank()
         tok = self.get_u()
-        if tok in ('(',')','<','>','[',']','/','%'):
+        if tok in (b'(',b')',b'<',b'>',b'[',b']',b'/',b'%'):
             ret = tok
         else:
             pos = self.get_pos()
-            while not tok in ('\x00','\r','\n','\t','\f',' ','EOF','(',')','<','>','[',']','/','%'):
+            while not tok in (b'\x00',b'\r',b'\n',b'\t',b'\f',b' ',b'EOF',b'(',b')',b'<',b'>',b'[',b']',b'/',b'%'):
                 ret += tok
                 pos = self.get_pos()
                 tok = self.get_u()

@@ -9,10 +9,13 @@ Documents containing executable files are often used in targeted email attacks. 
   
 Black Hat USA 2016: [Presentation](https://www.blackhat.com/docs/us-16/materials/us-16-Otsubo-O-checker-Detection-of-Malicious-Documents-through-Deviation-from-File-Format-Specifications.pdf), [White Paper](https://www.blackhat.com/docs/us-16/materials/us-16-Otsubo-O-checker-Detection-of-Malicious-Documents-through-Deviation-from-File-Format-Specifications-wp.pdf)
 
+## Update
+2026/02/08: Python 3 support
+
 ## Requirement
 
-* An OS that can run Python 2.7.3 or later
-* PyCrypto package for Python (for encrypted PDF files)
+* An OS that can run Python ~~2.7.3~~ 3.7 or later
+* ~~PyCrypto~~ [PyCryptodome](https://pypi.org/project/pycryptodome/) package for Python (for encrypted PDF files)
 
 ## Usage
 #### Basic usage

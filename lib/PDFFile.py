@@ -1,18 +1,18 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Copyright (c) 2014-2017 Yuhei Otsubo
+Copyright (c) 2014-2026 Yuhei Otsubo
 Released under the MIT license
 http://opensource.org/licenses/mit-license.php
 """
 
-import Stream
+from . import Stream
 import re
-import PDFObj
-import PDFCrypto
-import PDFFilter
+from . import PDFObj
+from . import PDFCrypto
+from . import PDFFilter
 import time
-import StringIO
+import io
 
 __DEBUG__ = False
 
@@ -76,74 +76,74 @@ class PDFFile:
             self.ObjList[self.obj[i].getID()] = i
 
     def isObj2(self,idnum):
-        return self.ObjList.has_key(idnum)
+        return idnum in self.ObjList.keys()
 
     def GetObj2(self,idnum):
         return self.obj[self.ObjList[idnum]]
         
 
     def PrintObjectList(self):
-        output = StringIO.StringIO()
+        output = io.StringIO()
         unfinish = True
         eof = 0
         for obj in self.obj:
             if obj.fOldOBJ:
                 unfinish = True
-                print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "old(not used)"
+                print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "old(not used)",file=output)
             elif obj.fOBJ:
                 if obj.start_pos != 0xFFFFFFFF:
                     unfinish = True
                 if obj.fLinearPDF:
-                    print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "Linearized parameter Dictionary"
+                    print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "Linearized parameter Dictionary",file=output)
 #                elif obj.fFreeOBJ:
-#                    print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "Free Object"
+#                    print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "Free Object",file=output)
                 elif obj.fHintStream:
-                    print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "Hint Stream"
+                    print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "Hint Stream",file=output)
                 elif obj.fXMLmetadata:
-                    print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "XML metadata"
+                    print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "XML metadata",file=output)
                 elif obj.fTrailer:
-                    print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "trailer"
+                    print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "trailer",file=output)
                 elif obj.fXrefStm:
-                    print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "XrefStm"
+                    print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "XrefStm",file=output)
                 elif obj.fObjStm:
-                    print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "ObjStm",obj.ObjStm
+                    print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "ObjStm",obj.ObjStm,file=output)
                 else:
                     if obj.xref == None and obj.end_pos-obj.start_pos > 512:
                         #Suspicious
-                        print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "xref from",obj.xref,"Suspicious"
+                        print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "xref from",obj.xref,"Suspicious",file=output)
                     else:
-                        print >> output,"%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "xref from",obj.xref
+                        print("%08X-%08X:obj"%(obj.start_pos,obj.end_pos-1),obj.getID(),obj.getGeneration(), "xref from",obj.xref,file=output)
             elif obj.fTrailer:
                 unfinish = True
-                print >> output,"%08X-%08X:trailer"%(obj.start_pos,obj.end_pos-1)
+                print("%08X-%08X:trailer"%(obj.start_pos,obj.end_pos-1),file=output)
             elif obj.fXref:
                 unfinish = True
-                print >> output,"%08X-%08X:xref"%(obj.start_pos,obj.end_pos-1)
+                print("%08X-%08X:xref"%(obj.start_pos,obj.end_pos-1),file=output)
             elif obj.fStartXref:
                 unfinish = True
-                print >> output,"%08X-%08X:startxref %08X"%(obj.start_pos,obj.end_pos-1,obj)
+                print("%08X-%08X:startxref %08X"%(obj.start_pos,obj.end_pos-1,obj),file=output)
             elif obj.fComment:
                 if obj.fEOF:
-                    print >> output,"%08X-%08X:EOF,"%(obj.start_pos,obj.end_pos-1)#,obj
+                    print("%08X-%08X:EOF,"%(obj.start_pos,obj.end_pos-1),file=output)
                     eof += 1
                     unfinish = False
                 else:
-                    print >> output,"%08X-%08X:comment,"%(obj.start_pos,obj.end_pos-1)#,obj
+                    print("%08X-%08X:comment,"%(obj.start_pos,obj.end_pos-1),file=output)
             elif obj.fEtc:
                 if obj.end_pos-obj.start_pos+1 > 512:
-                    print >> output,"%08X-%08X:unknown(malicious)"%(obj.start_pos,obj.end_pos-1)
+                    print("%08X-%08X:unknown(malicious)"%(obj.start_pos,obj.end_pos-1),file=output)
                 else:
-                    print >> output,"%08X-%08X:unknown(suspicious)"%(obj.start_pos,obj.end_pos-1)
+                    print("%08X-%08X:unknown(suspicious)"%(obj.start_pos,obj.end_pos-1),file=output)
             else:
                 if obj.end_pos-obj.start_pos+1 > 512:
-                    print >> output,"%08X-%08X:unknown(malicious)"%(obj.start_pos,obj.end_pos-1)
+                    print("%08X-%08X:unknown(malicious)"%(obj.start_pos,obj.end_pos-1),file=output)
                 else:
-                    print >> output,"%08X-%08X:unknown(suspicious)"%(obj.start_pos,obj.end_pos-1)
+                    print("%08X-%08X:unknown(suspicious)"%(obj.start_pos,obj.end_pos-1),file=output)
 
         if unfinish:
-            print >> output,"unfinished PDF file"
+            print("unfinished PDF file",file=output)
         ret = output.getvalue()
-        print ret
+        print(ret)
 
         return ret
             
@@ -164,20 +164,20 @@ class PDFFile:
         not_use_obj = {}
 
 
-        p1 = re.compile("([-+]?\d+)[\s\0]+([-+]?\d+)[\s\0]+obj",re.I)
-        p1_ = re.compile("obj",re.I)
-        p2 = re.compile("trailer",re.I)
-        p3 = re.compile("%",re.I)
-        p4 = re.compile("xref",re.I)
-        p5 = re.compile("startxref",re.I)
-        p1_1 = re.compile("endobj",re.I)
-        p1_2 = re.compile("stream",re.I)
-        p1_3 = re.compile("endstream",re.I)
+        p1 = re.compile(b"([-+]?\\d+)[\\s\\0]+([-+]?\\d+)[\\s\\0]+obj",re.I)
+        p1_ = re.compile(b"obj",re.I)
+        p2 = re.compile(b"trailer",re.I)
+        p3 = re.compile(b"%",re.I)
+        p4 = re.compile(b"xref",re.I)
+        p5 = re.compile(b"startxref",re.I)
+        p1_1 = re.compile(b"endobj",re.I)
+        p1_2 = re.compile(b"stream",re.I)
+        p1_3 = re.compile(b"endstream",re.I)
         while not self.stream.isEOF():
             start_pos = self.stream.get_pos()
             self.stream.skip_blank()
             pos = self.stream.get_pos()
-            #print "%08X"%pos
+            #print("%08X"%pos)
             line =  self.stream.read_line_u()
             #search object
             m1 = p1.match(line)
@@ -201,13 +201,13 @@ class PDFFile:
                     generation = 0
                 tok = self.stream.get_u()
                 self.stream.bak_pos()
-                if tok == '%':
+                if tok == b'%':
                     #途中にコメントある場合の暫定処理
                     pos = self.stream.get_pos()
                     line =  self.stream.read_line()
                     l = len(line)
                     for i in range(len(line)):
-                        if line[i] == '\x00':
+                        if line[i:i+1] == b'\x00':
                             l = i+1
                             break
                     self.stream.set_pos(pos+l)
@@ -215,12 +215,15 @@ class PDFFile:
                     tok = self.stream.get_u()
                     self.stream.bak_pos()
                     
-                if tok in '<[(0123456789+-/netf':
+                if tok in b'<[(0123456789+-/netf':
                     try:
                         obj = PDFObj.ReadObject(self.stream)
                     except:
                         #オブジェクトの読み込み時にエラーが発生した場合はNullオブジェクトとする
                         obj = PDFObj.NullObject()
+                        import traceback,sys
+                        traceback.print_exc()
+                        sys.exit()
                 else :
                     obj = PDFObj.NullObject()
                 pos = self.stream.get_pos()
@@ -241,12 +244,12 @@ class PDFFile:
                     tok = self.stream.get_u()#m
                     tok = self.stream.get_u()
                     l=0
-                    if tok == '\n':
+                    if tok == b'\n':
                         l += 1
-                    elif tok == '\r':
+                    elif tok == b'\r':
                         tok = self.stream.get_u()
                         l += 1
-                        if tok == '\n':
+                        if tok == b'\n':
                             l += 1
                         else:
                             self.stream.bak_pos()
@@ -262,11 +265,11 @@ class PDFFile:
 #                    else:
 #                        self.stream.bak_pos()
                     #self.stream.skip_blank()
-                    txt = ''
+                    txt = bytearray()
                     l = 0
                     if isinstance(obj, PDFObj.DictionaryObject):
-                        if obj.has_key('/Length'):
-                            l = obj['/Length']
+                        if b'/Length' in obj.keys():
+                            l = obj[b'/Length']
                     if isinstance(l, PDFObj.IndirectObject):
                         if self.isObj2(l.getID()):
                             l = self.GetObj2(l.getID())
@@ -280,7 +283,7 @@ class PDFFile:
                     while tmp_l > 0:
                         self.stream.set_pos(pos+tmp_l)
                         tok = self.stream.get_u()
-                        if tok == 'e' or tok == 'E':
+                        if tok == b'e' or tok == b'E':
                             self.stream.bak_pos()
                             phrase = self.stream.read_phrase_u()
                             if p1_3.match(phrase):  #'endstream'
@@ -293,8 +296,8 @@ class PDFFile:
                         txt += self.stream.get()
                     tok = self.stream.get_u()
                     self.stream.bak_pos()
-                    while tok != 'EOF':
-                        if tok == 'e' or tok == 'E':
+                    while tok != b'EOF':
+                        if tok == b'e' or tok == b'E':
                             pos = self.stream.get_pos()
                             phrase = self.stream.read_phrase_u()
                             self.stream.set_pos(pos)
@@ -311,14 +314,14 @@ class PDFFile:
                         txt += self.stream.get()
                         tok = self.stream.get_u()
                         self.stream.bak_pos()
-                    if l!=0 and len(txt)>l and len(txt)>2 and txt[-1] in ('\r','\n'):
-                        if len(txt)>l+1 and len(txt)>3 and txt[-2] in ('\r','\n'):
+                    if l!=0 and len(txt)>l and len(txt)>2 and txt[-1] in (b'\r',b'\n'):
+                        if len(txt)>l+1 and len(txt)>3 and txt[-2] in (b'\r',b'\n'):
                             txt = txt[:-2]
                         else:
                             txt = txt[:-1]
                     if isinstance(obj, PDFObj.DictionaryObject):
                         #暫定処置
-                        obj[PDFObj.NameObject('__streamdata__')] = PDFObj.StringObject(txt)
+                        obj[PDFObj.NameObject(b'__streamdata__')] = PDFObj.StringObject(txt)
 
                     self.stream.skip_blank()
                     pos = self.stream.get_pos()
@@ -351,25 +354,24 @@ class PDFFile:
                 except:
                     #オブジェクトの読み込み時にエラーが発生した場合は空の辞書オブジェクトとする
                     obj = PDFObj.DictionaryObject()
-                    
                 self.Trailer.update(trailer)
                 #analysis trailer
-                if trailer.has_key('/Size'):
-                    t_size = trailer['/Size']
+                if b'/Size' in trailer.keys():
+                    t_size = trailer[b'/Size']
                 else:
                     t_size = 0
-                if trailer.has_key('/Root'):
-                    t_root = trailer['/Root']
-                if trailer.has_key('/Info'):
-                    t_info = trailer['/Info']
-                if trailer.has_key('/ID'):
-                    t_id = trailer['/ID']
-                if trailer.has_key('/Prev'):
-                    t_prev = trailer['/Prev']
+                if b'/Root' in trailer.keys():
+                    t_root = trailer[b'/Root']
+                if b'/Info' in trailer.keys():
+                    t_info = trailer[b'/Info']
+                if b'/ID' in trailer.keys():
+                    t_id = trailer[b'/ID']
+                if b'/Prev' in trailer.keys():
+                    t_prev = trailer[b'/Prev']
                 else:
                     t_prev = ()
-                if trailer.has_key('/Encrypt'):
-                    t_encrypt = trailer['/Encrypt']
+                if b'/Encrypt' in trailer.keys():
+                    t_encrypt = trailer[b'/Encrypt']
                 self.stream.skip_blank()
                 end_pos = self.stream.get_pos()
                 trailer.start_pos = start_pos
@@ -378,26 +380,26 @@ class PDFFile:
                 self.obj.append(trailer)
             elif m3:
                 #comment
-                p = re.compile('%%EOF')
+                p = re.compile(b'%%EOF')
                 m = p.match(line)
                 if m:
                     #'%%EOF'の時は以降のコメントは無視
                     self.stream.set_pos(start_pos+5)
                     self.stream.skip_blank()
-                    line = '%%EOF'
+                    line = b'%%EOF'
                     fEOF = True
                 else:
                     fEOF = False
                 #コメント中にnullがあればそこで終了
                 l = len(line)
                 for i in range(len(line)):
-                    if line[i] == '\x00':
+                    if line[i] == b'\x00':
                         l = i+1
                         break
                 self.stream.set_pos(start_pos+l)
                 end_pos = self.stream.get_pos()
-                if line[-1] in ('\r','\n'):
-                    if line[-2] in ('\r','\n'):
+                if line[-1] in (b'\r',b'\n'):
+                    if line[-2] in (b'\r',b'\n'):
                         line = line[:-2]
                     else:
                         line = line[:-1]
@@ -412,25 +414,25 @@ class PDFFile:
                 self.stream.set_pos(start_pos)
                 self.stream.read_phrase_u()
                 self.stream.skip_blank()
-                lines = ''
+                lines = bytearray()
                 while True:
                     pos = self.stream.get_pos()
                     line = self.stream.read_line_u()
                     self.stream.set_pos(pos)
-                    p = re.compile('(\d+)\s+(\d+)[\r\n\s]')
+                    p = re.compile(b'(\\d+)\\s+(\\d+)[\\r\\n\\s]')
                     m = p.match(line)
                     if m:
                         lines += line
                         start_num = int(m.groups()[0])
                         obj_start = int(self.stream.read_phrase_u())
                         obj_num = int(self.stream.read_phrase_u())
-                        p = re.compile('(\d+)\s+(\d+)\s+([fn])',re.I)
+                        p = re.compile(b'(\\d+)\\s+(\\d+)\\s+([fn])',re.I)
                         while True:
                             pos = self.stream.get_pos()
                             line = self.stream.read_line_u()
                             m = p.match(line)
                             if m:
-                                if m.groups()[2] == 'f':
+                                if m.groups()[2] == b'f':
                                     not_use_obj[start_num] = True
                                 start_num += 1
                                 lines += line
@@ -472,8 +474,8 @@ class PDFFile:
                     obj.fEtc = True
                     self.obj.append(obj)
                     
-                if line[-1] in ('\r','\n'):
-                    if line[-2] in ('\r','\n'):
+                if line[-1] in (b'\r',b'\n'):
+                    if line[-2] in (b'\r',b'\n'):
                         line = line[:-2]
                     else:
                         line = line[:-1]
@@ -485,8 +487,8 @@ class PDFFile:
             #トレーラーが見つからなかった場合は%%EOFの直前のオブジェクトをトレーラーとみなす
             for i in range(len(self.obj)):
                 if self.obj[i].fComment:
-                    if self.obj[i] == '%%EOF':
-                        last_obj = ''
+                    if self.obj[i] == b'%%EOF':
+                        last_obj = b''
                         for j in range(i):
                             if self.obj[i-j].fOBJ or self.obj[i-j].fOldOBJ:
                                 last_obj = self.obj[i-j]
@@ -495,22 +497,22 @@ class PDFFile:
                         trailer.fTrailer = True
                         self.Trailer = trailer
                         #トレーラーを分析
-                        if trailer.has_key('/Size'):
-                            t_size = trailer['/Size']
+                        if b'/Size' in trailer.keys():
+                            t_size = trailer[b'/Size']
                         else:
                             t_size = PDFObj.NumberObject(0)
-                        if trailer.has_key('/Root'):
-                            t_root = trailer['/Root']
-                        if trailer.has_key('/Info'):
-                            t_info = trailer['/Info']
-                        if trailer.has_key('/ID'):
-                            t_id = trailer['/ID']
-                        if trailer.has_key('/Prev'):
-                            t_prev = trailer['/Prev']
+                        if b'/Root' in trailer.keys():
+                            t_root = trailer[b'/Root']
+                        if b'/Info' in trailer.keys():
+                            t_info = trailer[b'/Info']
+                        if b'/ID' in trailer.keys():
+                            t_id = trailer[b'/ID']
+                        if b'/Prev' in trailer.keys():
+                            t_prev = trailer[b'/Prev']
                         else:
                             t_prev = ()
-                        if trailer.has_key('/Encrypt'):
-                            t_encrypt = trailer['/Encrypt']
+                        if b'/Encrypt' in trailer.keys():
+                            t_encrypt = trailer[b'/Encrypt']
         #PDF読み込み終了
 
         t.append(time.time())
@@ -519,12 +521,12 @@ class PDFFile:
         #暗号化辞書の分析～ここから
         if t_encrypt:
             encrypt = self.GetObj(t_encrypt.getID(),t_encrypt.getGeneration())
-            if not encrypt.has_key('/EncryptMetadata'):
+            if b'/EncryptMetadata' not in encrypt.keys():
                 #/EncryptMetadataのデフォルト値はtrue
-                encrypt[PDFObj.NameObject('/EncryptMetadata')] = PDFObj.BooleanObject(True)
-            if not encrypt.has_key('/Length'):
+                encrypt[PDFObj.NameObject(b'/EncryptMetadata')] = PDFObj.BooleanObject(True)
+            if b'/Length' not in encrypt.keys():
                 #/Lengthのデフォルト値は40
-                encrypt[PDFObj.NameObject('/Length')] = PDFObj.NumberObject(40)
+                encrypt[PDFObj.NameObject(b'/Length')] = PDFObj.NumberObject(40)
             self.encrypt = encrypt
             encryption_key = PDFCrypto.get_encryption_key(self.encrypt,self.Trailer,password)
             self.encryption_key = encryption_key
@@ -539,15 +541,15 @@ class PDFFile:
                 if obj.fOBJ or obj.fOldOBJ:
                     fXref = False
                     if isinstance(obj,PDFObj.DictionaryObject):
-                        if obj.has_key('/Type'):
-                            if obj['/Type'] == '/XRef':
+                        if b'/Type' in obj.keys():
+                            if obj[b'/Type'] == b'/XRef':
                                 fXref = True
                                 #トレーラー上にある相互参照ストリームのときは通常は暗号化されていない
                                 #トレーラー上にない相互参照ストリームはトレイラーに'/XRefStm'が定義されていると暗号化されない
                                 #それ以外は暗号化される
                                 if not obj.fTrailer:
-                                    if self.Trailer.has_key('/XRefStm'):
-                                        if obj.start_pos != int(self.Trailer['/XRefStm']):
+                                    if b'/XRefStm' in self.Trailer.keys():
+                                        if obj.start_pos != int(self.Trailer[b'/XRefStm']):
                                             fXref = False
                                     else:
                                         fXref = False
@@ -563,7 +565,7 @@ class PDFFile:
         for obj in self.obj:
             if obj.fOBJ or obj.fOldOBJ:
                 if isinstance(obj,PDFObj.DictionaryObject):
-                    if obj.has_key('__streamdata__'):
+                    if b'__streamdata__' in obj.keys():
                         PDFFilter.DecodeStream(obj)
         #ストリームデータのデコード～ここまで
 
@@ -574,26 +576,26 @@ class PDFFile:
         for obj in self.obj:
             if obj.fOBJ or obj.fOldOBJ:
                 if isinstance(obj,PDFObj.DictionaryObject):
-                    if obj.has_key('/Type'):
-                        if obj['/Type'] == '/XRef':
+                    if b'/Type' in obj.keys():
+                        if obj[b'/Type'] == b'/XRef':
                             #相互参照ストリーム
                             obj.fXrefStm = True
-                        elif obj['/Type'] == '/Metadata':
-                            if obj.has_key('/Subtype'):
-                                if obj['/Subtype'] == '/XML':
+                        elif obj[b'/Type'] == b'/Metadata':
+                            if b'/Subtype' in obj.keys():
+                                if obj[b'/Subtype'] == b'/XML':
                                     #XML metadata
                                     obj.fXMLmetadata = True
-                        elif obj['/Type'] == '/ObjStm':
+                        elif obj[b'/Type'] == b'/ObjStm':
                             obj.fObjStm = True
                             stream = Stream.Stream()
-                            stream.SetStream(obj['__streamdata__'])
+                            stream.SetStream(obj[b'__streamdata__'])
                             ids = []
                             tok = ''
-                            while tok != 'EOF':
+                            while tok != b'EOF':
                                 stream.skip_blank()
                                 tok = stream.get_u()
                                 stream.bak_pos()
-                                if tok in ('0','1','2','3','4','5','6','7','8','9'):
+                                if tok in (b'0',b'1',b'2',b'3',b'4',b'5',b'6',b'7',b'8',b'9'):
                                     #id
                                     ids.append(int(stream.read_phrase_u()))
                                     #offset
@@ -619,19 +621,19 @@ class PDFFile:
         #Linear PDFの判定～ここから
         for obj in self.obj:
             if obj.fOBJ:
-                if isinstance(obj, PDFObj.DictionaryObject) and obj.has_key('/Linearized'):
-                    if obj['/Linearized'] == 1:
+                if isinstance(obj, PDFObj.DictionaryObject) and (b'/Linearized' in obj.keys()):
+                    if obj[b'/Linearized'] == 1:
                         #Linear PDF
                         obj.fLinearPDF = True
-                        if obj.has_key('/H'):
+                        if b'/H' in obj.keys():
                             #primary hint stream
-                            primary_hint_stream_pos = obj['/H'][0]
+                            primary_hint_stream_pos = obj[b'/H'][0]
                             for obj2 in self.obj:
                                 if obj2.start_pos == primary_hint_stream_pos:
                                     obj2.fHintStream = True
-                            if len(obj['/H'])==4:
+                            if len(obj[b'/H'])==4:
                                 #overflow hint stream
-                                overflow_hint_stream_pos = obj['/H'][3]
+                                overflow_hint_stream_pos = obj[b'/H'][3]
                                 for obj2 in self.obj:
                                     if obj2.start_pos == overflow_hint_stream_pos:
                                         obj2.fHintStream = True
@@ -675,23 +677,23 @@ class PDFFile:
 
         if __DEBUG__:
             for i in range(len(t)-1):
-                print t_[i],t[i+1]-t[i],'sec'
+                print(t_[i],t[i+1]-t[i],'sec')
     def OutputObject(self,no):
         if no == 0:
-            print self.obj
+            print(self.obj)
         elif no == -1:
             return
         else:
             for obj in self.obj:
                 if obj.getID() == no:
-                    print obj
+                    print(obj)
     def OutputStream(self,no):
         if no == 0:
-            print self.obj
+            print(self.obj)
         elif no == -1:
             return
         else:
             for obj in self.obj:
                 if obj.getID() == no:
-                    if obj.has_key('__streamdata__'):
-                        print obj['__streamdata__']
+                    if b'__streamdata__' in obj.keys():
+                        print(obj[b'__streamdata__'])
