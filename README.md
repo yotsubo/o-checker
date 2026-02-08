@@ -1,7 +1,7 @@
 o-checker
 ====
 
-O-checker is a malware detection tool for document files.  
+o-checker is a malware detection tool for document files.  
 We published this tool at Black Hat USA 2016.  
 The following is the abstract of the research paper at Black Hat USA 2016.
   
